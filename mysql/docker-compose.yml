@@ -1,0 +1,19 @@
+# MySQL only – separate stack in Docker Desktop
+# From this folder: cp .env.example .env  then  docker compose up -d
+#
+# MySQL 8 – default auth is caching_sha2_password (no mysql_native_password server option).
+# If upgrading from 8.0, wipe ./data once so init runs clean.
+
+name: mysql
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - ./data:/var/lib/mysql

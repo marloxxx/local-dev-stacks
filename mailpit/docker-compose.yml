@@ -1,0 +1,19 @@
+# Mailpit only – separate stack in Docker Desktop (Mailhog replacement)
+# UI http://localhost:8025  SMTP localhost:1025
+# From this folder: cp .env.example .env  then  docker compose up -d
+
+name: mailpit
+
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "5000"
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    volumes:
+      - ./data:/data
