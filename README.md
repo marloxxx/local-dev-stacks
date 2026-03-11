@@ -1,112 +1,150 @@
-# Local development (Docker)
+# local-dev-stacks
 
-Each service is **its own Compose project** so you can start/stop and manage them separately in **Docker Desktop** (Containers / Compose view per stack).
+Local **Docker Compose** stacks for day-to-day development: **Postgres**, **Redis**, **MySQL**, **MinIO**, and **Mailpit**. Each service lives in its own folder so you can start or stop stacks independently in Docker Desktop (or CLI).
 
-| Folder    | Compose project name | Container   | Ports        |
-| --------- | -------------------- | ----------- | ------------ |
-| `postgres/` | `postgres`         | `postgres`  | 5432         |
-| `redis/`    | `redis`            | `redis`     | 6379         |
-| `minio/`    | `minio`            | `minio`     | 9000, 9001   |
-| `mailpit/`  | `mailpit`          | `mailpit`   | 1025, 8025   |
-| `mysql/`    | `mysql`            | `mysql`     | 3306         |
+| Service   | Folder     | Default ports | Use case                          |
+| --------- | ---------- | ------------- | --------------------------------- |
+| Postgres  | `postgres/` | 5432         | Relational DB                     |
+| Redis     | `redis/`    | 6379         | Cache / queues                    |
+| MySQL     | `mysql/`    | 3306         | MySQL 8.4 apps                    |
+| MinIO     | `minio/`    | 9000, 9001   | S3-compatible storage             |
+| Mailpit   | `mailpit/`  | 1025, 8025   | SMTP capture + web UI             |
 
-There is **no** single root `docker-compose.yml` – everything is split by folder on purpose.
+There is **no** root `docker-compose.yml`—by design, so each stack is a separate Compose project.
 
-## Per-service quick start
+---
+
+## Prerequisites
+
+- **Docker** and **Docker Compose** v2 (`docker compose`)
+- **Docker Desktop** (macOS/Windows) or Docker Engine + Compose on Linux
+
+---
+
+## Clone
 
 ```bash
-cd development/postgres
+git clone https://github.com/marloxxx/local-dev-stacks.git
+cd local-dev-stacks
+```
+
+SSH:
+
+```bash
+git clone git@github.com:marloxxx/local-dev-stacks.git
+cd local-dev-stacks
+```
+
+---
+
+## Quick start
+
+### Option A – One script (all stacks)
+
+From the **repo root**:
+
+```bash
+chmod +x dev-stacks.sh   # once
+./dev-stacks.sh up       # creates .env from .env.example if missing, then starts all
+./dev-stacks.sh status   # compose ps per stack
+./dev-stacks.sh down    # stop all
+./dev-stacks.sh help    # usage
+```
+
+### Option B – Single service only
+
+```bash
+cd postgres
 cp .env.example .env
 docker compose up -d
 ```
 
 Repeat for `redis/`, `minio/`, `mailpit/`, `mysql/` as needed.
 
-## Docker Desktop
-
-- Open **Containers** – you’ll see one group per project (`postgres`, `redis`, …).
-- Start/stop/restart each stack without touching the others.
-- Optional: **File → Open Folder** on each service folder if you use Desktop to run Compose from the UI.
-
-## Run all stacks (bash)
-
-From the `development` folder:
-
-```bash
-./dev-stacks.sh up      # start all (copies .env.example → .env if needed)
-./dev-stacks.sh down    # stop all
-./dev-stacks.sh status  # ps for each stack
-```
+---
 
 ## Connection reference
 
-- **Postgres:** `postgresql://postgres:PASSWORD@localhost:5432/postgres` – create DBs when needed.
-- **Redis:** `redis://:REDIS_PASSWORD@localhost:6379/0`
-- **MinIO:** `http://localhost:9000` – credentials in `minio/.env`
-- **Mailpit UI:** http://localhost:8025 – SMTP `localhost:1025`
-- **MySQL:** `root` on `localhost:3306` – image **mysql:8.4** (default **caching_sha2_password**). Clients must support it or use TLS. If init fails or you switched from 8.0, wipe `mysql/data` then `docker compose up -d` again.
+| Service  | Connection notes |
+| -------- | ---------------- |
+| **Postgres** | `postgresql://postgres:<password>@localhost:5432/postgres` — password in `postgres/.env` |
+| **Redis**    | `redis://:<password>@localhost:6379/0` — password in `redis/.env` |
+| **MySQL**    | `root` @ `localhost:3306` — **MySQL 8.4** (`caching_sha2_password`). Clients must support it or use TLS. If you change version or init fails, wipe `mysql/data` then `docker compose up -d` again. |
+| **MinIO**    | API `http://localhost:9000`, console `http://localhost:9001` — credentials in `minio/.env` |
+| **Mailpit**  | SMTP `localhost:1025`, UI http://localhost:8025 |
 
-## Layout
+Default-style passwords are in each folder’s `.env.example` (copy to `.env`—never commit `.env`).
+
+---
+
+## Docker Desktop
+
+- **Containers** shows one group per project (`postgres`, `redis`, …).
+- Start/stop/restart each stack without affecting the others.
+- Optional: **File → Open Folder** on a service folder to run Compose from the UI.
+
+---
+
+## Repo layout
 
 ```
-development/
-├── dev-stacks.sh         # bash: up / down / status for all stacks
-├── .env.example          # optional: all vars in one place (copy into each folder if you prefer)
+local-dev-stacks/
+├── dev-stacks.sh          # up | down | status | help
+├── .env.example           # optional aggregate vars (each service has its own .env.example)
+├── .gitignore
 ├── README.md
-├── postgres/
-│   ├── docker-compose.yml
-│   ├── .env.example
-│   └── data/             # gitignored
+├── postgres/   docker-compose.yml  .env.example  data/   # data/ gitignored
 ├── redis/
-│   ├── docker-compose.yml
-│   ├── .env.example
-│   └── data/
 ├── minio/
-│   ├── docker-compose.yml
-│   ├── .env.example
-│   └── data/
 ├── mailpit/
-│   ├── docker-compose.yml
-│   ├── .env.example
-│   └── data/             # gitignored (SQLite inbox)
 └── mysql/
-    ├── docker-compose.yml
-    ├── .env.example
-    └── data/
 ```
 
-Stop a single stack:
+Stop one stack only:
 
 ```bash
-cd development/postgres
+cd postgres
 docker compose down
 ```
 
-## Mailpit: port 1025 already allocated
+---
 
-If `docker compose up` fails with **port is already allocated** on **1025** (or **8025**):
+## Troubleshooting
 
-1. **Free the port** – often an old Mailhog/Mailpit container still bound:
+### Mailpit: port 1025 (or 8025) already allocated
+
+1. **Free the port** — old Mailhog/Mailpit container may still be bound:
    ```bash
    docker ps -a | grep -E '1025|mailhog|mailpit'
    docker stop mailhog 2>/dev/null; docker rm mailhog 2>/dev/null
-   # or remove whatever container publishes 1025
    ```
-2. **Or use different host ports** – edit `mailpit/.env`:
+2. **Or change ports** in `mailpit/.env`:
    ```bash
    MAILPIT_SMTP_PORT=1026
    MAILPIT_UI_PORT=8026
    ```
-   Then set your app SMTP host to `localhost` and port **1026**; open the UI at http://localhost:8026
+   Point your app at SMTP `localhost:1026`; open UI at http://localhost:8026
+
+### `git push` / SSH: Permission denied (publickey)
+
+Use HTTPS remote and a [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) when prompted for password:
+
+```bash
+git remote set-url origin https://github.com/marloxxx/local-dev-stacks.git
+git push -u origin main
+```
+
+---
 
 ## Git
 
-Clone on another machine:
+- **Tracked:** `docker-compose.yml`, `.env.example`, `dev-stacks.sh`, docs.
+- **Ignored:** all `.env` files and every `**/data/` directory (DB volumes, Mailpit SQLite, etc.).
 
-```bash
-git clone https://github.com/marloxxx/local-dev-stacks.git
-cd local-dev-stacks
-# copy .env.example → .env per service, then docker compose up -d
-```
+Do **not** commit real passwords; rotate anything that was ever committed by mistake.
 
-`.env` and all `**/data/` directories are ignored – only compose files and `.env.example` are tracked.
+---
+
+## Licence
+
+Use freely for local development.
